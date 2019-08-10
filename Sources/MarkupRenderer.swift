@@ -19,12 +19,14 @@ public final class MarkupRenderer {
 		self.baseFont = baseFont
 	}
 
-	public func render(text: String) -> NSAttributedString {
-		let elements = MarkupParser.parse(text: text)
-		let attributes = [NSAttributedString.Key.font: baseFont]
-
-		return elements.map { $0.render(withAttributes: attributes) }.joined()
-	}
+	public func render(text: String, foregroundColor: UIColor? = nil, backgroundColor: UIColor? = nil) -> NSAttributedString {
+        let elements = MarkupParser.parse(text: text)
+        var attributes: [NSAttributedString.Key: Any] = [:]
+        attributes[NSAttributedString.Key.font] = baseFont
+        if let foregroundColor = foregroundColor { attributes[.foregroundColor] = foregroundColor }
+        if let backgroundColor = backgroundColor { attributes[.backgroundColor] = backgroundColor }
+        return elements.map { $0.render(withAttributes: attributes) }.joined()
+    }
 }
 
 private extension MarkupNode {
