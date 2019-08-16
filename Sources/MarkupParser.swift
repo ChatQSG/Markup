@@ -13,15 +13,15 @@ public struct MarkupParser {
 	}
 
 	private var tokenizer: MarkupTokenizer
-	private var openingDelimiters: [(Int, UnicodeScalar)] = []
-	var index = 0
+	private var openingDelimiters: [UnicodeScalar] = []
+
 	private init(text: String) {
 		tokenizer = MarkupTokenizer(string: text)
 	}
 
-	private mutating func parse(recuseIndex: Int = 0) -> [MarkupNode] {
+	private mutating func parse() -> [MarkupNode] {
 		var elements: [MarkupNode] = []
-		let recursiveIndex = recuseIndex
+
 		while let token = tokenizer.nextToken() {
 			switch token {
 			case .text(let text):
@@ -29,11 +29,10 @@ public struct MarkupParser {
 
 			case .leftDelimiter(let delimiter):
 				// Recursively parse all the tokens following the delimiter
-				index += 1
-				openingDelimiters.append((recursiveIndex, delimiter))
-				elements.append(contentsOf: parse(recuseIndex: recursiveIndex))
+				openingDelimiters.append(delimiter)
+				elements.append(contentsOf: parse())
 
-			case .rightDelimiter(let delimiter) where openingDelimiters.map { $0.1 }.contains(delimiter):
+			case .rightDelimiter(let delimiter) where openingDelimiters.contains(delimiter):
 				guard let containerNode = close(delimiter: delimiter, elements: elements) else {
 					fatalError("There is no MarkupNode for \(delimiter)")
 				}
@@ -45,12 +44,9 @@ public struct MarkupParser {
 		}
 
 		// Convert orphaned opening delimiters to plain text
-		if let lastOrphan = openingDelimiters.last {
-			if lastOrphan.0 == recursiveIndex {
-				elements.insert(MarkupNode.text(String(lastOrphan.1)), at: 0)
-				_ = openingDelimiters.popLast()
-			}
-		}
+		let textElements: [MarkupNode] = openingDelimiters.map { .text(String($0)) }
+		elements.insert(contentsOf: textElements, at: 0)
+		openingDelimiters.removeAll()
 
 		return elements
 	}
@@ -62,10 +58,10 @@ public struct MarkupParser {
 		while openingDelimiters.count > 0 {
 			let openingDelimiter = openingDelimiters.popLast()!
 
-			if openingDelimiter.1 == delimiter {
+			if openingDelimiter == delimiter {
 				break
 			} else {
-				newElements.insert(.text(String(openingDelimiter.1)), at: 0)
+				newElements.insert(.text(String(openingDelimiter)), at: 0)
 			}
 		}
 
