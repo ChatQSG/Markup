@@ -20,13 +20,22 @@ public final class MarkupRenderer {
 	}
 
 	public func render(text: String, foregroundColor: UIColor? = nil, backgroundColor: UIColor? = nil) -> NSAttributedString {
-        let elements = MarkupParser.parse(text: text)
-        var attributes: [NSAttributedString.Key: Any] = [:]
-        attributes[NSAttributedString.Key.font] = baseFont
-        if let foregroundColor = foregroundColor { attributes[.foregroundColor] = foregroundColor }
-        if let backgroundColor = backgroundColor { attributes[.backgroundColor] = backgroundColor }
-        return elements.map { $0.render(withAttributes: attributes) }.joined()
-    }
+		var elements = MarkupParser.parse(text: text)
+		elements = elements.map {
+			switch $0 {
+			case .strong(let children): if children.count == 0 { return MarkupNode.text("**") }
+			case .emphasis(let children): if children.count == 0 { return MarkupNode.text("__") }
+			case .delete(let children): if children.count == 0 { return MarkupNode.text("~~") }
+			default: break
+			}
+			return $0
+		}
+
+		var attributes: [NSAttributedString.Key: Any] = [NSAttributedString.Key.font: baseFont]
+		if let foregroundColor = foregroundColor { attributes[.foregroundColor] = foregroundColor }
+		if let backgroundColor = backgroundColor { attributes[.backgroundColor] = backgroundColor }
+		return elements.map { $0.render(withAttributes: attributes) }.joined()
+	}
 }
 
 private extension MarkupNode {
