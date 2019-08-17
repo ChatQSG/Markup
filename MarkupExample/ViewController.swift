@@ -10,7 +10,7 @@ import UIKit
 class ViewController: UIViewController {
 	@IBOutlet var plainTextLabel: UILabel!
 	@IBOutlet var richTextLabel: UILabel!
-    @IBOutlet var textView: UITextView!
+	@IBOutlet var textView: UITextView!
 
 	private let renderer = MarkupRenderer(baseFont: .systemFont(ofSize: 18))
 	private let sampleText = "~Annihilate?~ No. No violence. I won't stand for it. _Not now, not ever, do you understand me?!_ *I'm the Doctor, the Oncoming Storm - and you basically meant beat them in a football match, didn't you?* I'm nobody's taxi service; I'm not gonna be there to catch you every time you feel like _*jumping out of a spaceship*_."
@@ -24,7 +24,11 @@ class ViewController: UIViewController {
 }
 
 extension ViewController: UITextViewDelegate {
-    func textViewDidChange(_ textView: UITextView) {
-        richTextLabel.attributedText = renderer.render(text: textView.text)
-    }
+	func textViewDidChange(_ textView: UITextView) {
+		var attributes: [NSAttributedString.Key: Any] = [:]
+		attributes[.kern] = -0.41
+		attributes[.foregroundColor] = UIColor.red
+		attributes[.backgroundColor] = UIColor.green
+		richTextLabel.attributedText = renderer.render(text: textView.text, withAttributes: attributes)
+	}
 }

@@ -9,19 +9,17 @@ import Foundation
 public struct MarkupParser {
 	public static func parse(text: String) -> [MarkupNode] {
 		var parser = MarkupParser(text: text)
-		return parser.parse()
+		return parser.parse().1
 	}
 
 	private var tokenizer: MarkupTokenizer
-	private var openingDelimiters: [(Int, UnicodeScalar)] = []
-	var index = 0
+	private var openingDelimiters: [UnicodeScalar] = []
 	private init(text: String) {
 		tokenizer = MarkupTokenizer(string: text)
 	}
 
-	private mutating func parse(recuseIndex: Int = 0) -> [MarkupNode] {
+	private mutating func parse() -> (UnicodeScalar?, [MarkupNode]) {
 		var elements: [MarkupNode] = []
-		let recursiveIndex = recuseIndex
 		while let token = tokenizer.nextToken() {
 			switch token {
 			case .text(let text):
@@ -29,15 +27,26 @@ public struct MarkupParser {
 
 			case .leftDelimiter(let delimiter):
 				// Recursively parse all the tokens following the delimiter
-				index += 1
-				openingDelimiters.append((recursiveIndex, delimiter))
-				elements.append(contentsOf: parse(recuseIndex: recursiveIndex))
+				openingDelimiters.append(delimiter)
+				let childResult = parse()
+				if let childDelemiter = childResult.0, childDelemiter != delimiter && childResult.1.count == 1 {
+					if let item = childResult.1.first {
+						switch item {
+						case .text: elements.append(item)
+						case .strong(let children): elements.append(contentsOf: children)
+						case .emphasis(let children): elements.append(contentsOf: children)
+						case .delete(let children): elements.append(contentsOf: children)
+						}
+					}
+					if let markupNode = MarkupNode(delimiter: childDelemiter, children: elements) { return (childDelemiter, [markupNode]) }
+				}
+				elements.append(contentsOf: childResult.1)
 
-			case .rightDelimiter(let delimiter) where openingDelimiters.map { $0.1 }.contains(delimiter):
+			case .rightDelimiter(let delimiter) where openingDelimiters.contains(delimiter):
 				guard let containerNode = close(delimiter: delimiter, elements: elements) else {
 					fatalError("There is no MarkupNode for \(delimiter)")
 				}
-				return [containerNode]
+				return (delimiter, [containerNode])
 
 			default:
 				elements.append(.text(token.description))
@@ -45,14 +54,11 @@ public struct MarkupParser {
 		}
 
 		// Convert orphaned opening delimiters to plain text
-		if let lastOrphan = openingDelimiters.last {
-			if lastOrphan.0 == recursiveIndex {
-				elements.insert(MarkupNode.text(String(lastOrphan.1)), at: 0)
-				_ = openingDelimiters.popLast()
-			}
+		if let lastOrphan = openingDelimiters.popLast() {
+			elements.insert(MarkupNode.text(String(lastOrphan)), at: 0)
 		}
 
-		return elements
+		return (nil, elements)
 	}
 
 	private mutating func close(delimiter: UnicodeScalar, elements: [MarkupNode]) -> MarkupNode? {
@@ -62,10 +68,10 @@ public struct MarkupParser {
 		while openingDelimiters.count > 0 {
 			let openingDelimiter = openingDelimiters.popLast()!
 
-			if openingDelimiter.1 == delimiter {
+			if openingDelimiter == delimiter {
 				break
 			} else {
-				newElements.insert(.text(String(openingDelimiter.1)), at: 0)
+				newElements.insert(.text(String(openingDelimiter)), at: 0)
 			}
 		}
 
