@@ -19,11 +19,19 @@ public final class MarkupRenderer {
 		self.baseFont = baseFont
 	}
 
-	public func render(text: String) -> NSAttributedString {
-		let elements = MarkupParser.parse(text: text)
-		let attributes = [NSAttributedString.Key.font: baseFont]
-
-		return elements.map { $0.render(withAttributes: attributes) }.joined()
+	public func render(text: String, withAttributes attributes: [NSAttributedString.Key: Any] = [:]) -> NSAttributedString {
+		var elements = MarkupParser.parse(text: text)
+		elements = elements.map {
+			switch $0 {
+			case .strong(let children): if children.isEmpty { return MarkupNode.text("**") }
+			case .emphasis(let children): if children.isEmpty { return MarkupNode.text("__") }
+			case .delete(let children): if children.isEmpty { return MarkupNode.text("~~") }
+			default: break
+			}
+			return $0
+		}
+		let newAttributes: [NSAttributedString.Key: Any] = [.font: baseFont].merging(attributes) { current, _ in current }
+		return elements.map { $0.render(withAttributes: newAttributes) }.joined()
 	}
 }
 

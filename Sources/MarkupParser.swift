@@ -9,19 +9,17 @@ import Foundation
 public struct MarkupParser {
 	public static func parse(text: String) -> [MarkupNode] {
 		var parser = MarkupParser(text: text)
-		return parser.parse()
+		return parser.parse().1
 	}
 
 	private var tokenizer: MarkupTokenizer
 	private var openingDelimiters: [UnicodeScalar] = []
-
 	private init(text: String) {
 		tokenizer = MarkupTokenizer(string: text)
 	}
 
-	private mutating func parse() -> [MarkupNode] {
+	private mutating func parse() -> (UnicodeScalar?, [MarkupNode]) {
 		var elements: [MarkupNode] = []
-
 		while let token = tokenizer.nextToken() {
 			switch token {
 			case .text(let text):
@@ -30,13 +28,25 @@ public struct MarkupParser {
 			case .leftDelimiter(let delimiter):
 				// Recursively parse all the tokens following the delimiter
 				openingDelimiters.append(delimiter)
-				elements.append(contentsOf: parse())
+				let childResult = parse()
+				if let childDelimiter = childResult.0, childDelimiter != delimiter && childResult.1.count == 1 {
+					if let item = childResult.1.first {
+						switch item {
+						case .text: elements.append(item)
+						case .strong(let children): elements.append(contentsOf: children)
+						case .emphasis(let children): elements.append(contentsOf: children)
+						case .delete(let children): elements.append(contentsOf: children)
+						}
+					}
+					if let markupNode = MarkupNode(delimiter: childDelimiter, children: elements) { return (childDelimiter, [markupNode]) }
+				}
+				elements.append(contentsOf: childResult.1)
 
 			case .rightDelimiter(let delimiter) where openingDelimiters.contains(delimiter):
 				guard let containerNode = close(delimiter: delimiter, elements: elements) else {
 					fatalError("There is no MarkupNode for \(delimiter)")
 				}
-				return [containerNode]
+				return (delimiter, [containerNode])
 
 			default:
 				elements.append(.text(token.description))
@@ -44,11 +54,11 @@ public struct MarkupParser {
 		}
 
 		// Convert orphaned opening delimiters to plain text
-		let textElements: [MarkupNode] = openingDelimiters.map { .text(String($0)) }
-		elements.insert(contentsOf: textElements, at: 0)
-		openingDelimiters.removeAll()
+		if let lastOrphan = openingDelimiters.popLast() {
+			elements.insert(MarkupNode.text(String(lastOrphan)), at: 0)
+		}
 
-		return elements
+		return (nil, elements)
 	}
 
 	private mutating func close(delimiter: UnicodeScalar, elements: [MarkupNode]) -> MarkupNode? {
