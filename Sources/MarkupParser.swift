@@ -29,7 +29,7 @@ public struct MarkupParser {
 				// Recursively parse all the tokens following the delimiter
 				openingDelimiters.append(delimiter)
 				let childResult = parse()
-				if let childDelemiter = childResult.0, childDelemiter != delimiter && childResult.1.count == 1 {
+				if let childDelimiter = childResult.0, childDelimiter != delimiter && childResult.1.count == 1 {
 					if let item = childResult.1.first {
 						switch item {
 						case .text: elements.append(item)
@@ -38,7 +38,7 @@ public struct MarkupParser {
 						case .delete(let children): elements.append(contentsOf: children)
 						}
 					}
-					if let markupNode = MarkupNode(delimiter: childDelemiter, children: elements) { return (childDelemiter, [markupNode]) }
+					if let markupNode = MarkupNode(delimiter: childDelimiter, children: elements) { return (childDelimiter, [markupNode]) }
 				}
 				elements.append(contentsOf: childResult.1)
 

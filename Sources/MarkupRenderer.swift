@@ -30,8 +30,8 @@ public final class MarkupRenderer {
 			}
 			return $0
 		}
-		let newAttributes: [NSAttributedString.Key: Any] = [NSAttributedString.Key.font: baseFont]
-		return elements.map { $0.render(withAttributes: newAttributes.merging(attributes) { current, _ in current }) }.joined()
+		let newAttributes: [NSAttributedString.Key: Any] = [.font: baseFont].merging(attributes) { current, _ in current }
+		return elements.map { $0.render(withAttributes: newAttributes) }.joined()
 	}
 }
 
